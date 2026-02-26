@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Biometric Capturing</title>
+
+<style>
+body{
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#f3f2f1;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+}
+
+.container{
+    width:95%;
+    max-width:600px;
+    background:#fff;
+    border-radius:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.2);
+    overflow:hidden;
+}
+
+.image-header img{
+    width:100%;
+    height:auto;
+    display:block;
+}
+
+.content{ padding:20px; }
+
+h2{ color:#012169; }
+
+button{
+    padding:12px;
+    width:100%;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+    font-size:16px;
+    margin-top:15px;
+}
+
+.primary{
+    background:#C8102E;
+    color:#fff;
+}
+
+.secondary{
+    background:#ccc;
+}
+
+video, img.preview{
+    width:100%;
+    border-radius:6px;
+    max-height:50vh;
+    object-fit:cover;
+}
+
+.progress-bar-container{
+    width:100%;
+    background:#eee;
+    border-radius:20px;
+    margin-top:15px;
+    overflow:hidden;
+}
+
+.progress-bar{
+    height:20px;
+    width:0%;
+    background:#012169;
+    text-align:center;
+    color:#fff;
+    font-size:12px;
+    line-height:20px;
+}
+
+.success{ color:green; font-weight:bold; font-size:18px; }
+.error{ color:red; font-weight:bold; font-size:18px; }
+
+.footer{
+    text-align:center;
+    font-size:12px;
+    padding:10px;
+    background:#f3f2f1;
+}
+
+#biometricMsg{
+    margin-top:20px;
+    padding:20px;
+    border-radius:10px;
+    text-align:center;
+    font-size:16px;
+    display:none;
+    background:#f0f8ff;
+}
+
+#biometricMsg img{
+    width:120px;
+    height:120px;
+    display:block;
+    margin:0 auto 10px auto;
+}
+
+#biometricMsg hr{
+    margin:15px 0;
+    border:0.5px solid #ccc;
+}
+
+#biometricMsg .caution{
+    display:block;
+    color:#C8102E;
+    font-weight:bold;
+    margin:10px 0;
+}
+
+#uploadProgressContainer{
+    display:none;
+    margin-top:15px;
+}
+
+#finalCompleted{
+    display:none;
+    text-align:center;
+    font-size:20px;
+    font-weight:bold;
+    padding:20px;
+}
+
+.toast{
+    position: fixed;
+    bottom: 20px;
+    left:50%;
+    transform: translateX(-50%);
+    background:#fff;
+    color:#000;
+    padding:15px 25px;
+    border-radius:8px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.3);
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight:bold;
+    display:none;
+    z-index:1000;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="image-header">
+    <img src="head.png" alt="Header">
+</div>
+
+<div class="content">
+
+<!-- INSTRUCTIONS -->
+<div id="instructionSection">
+<h2 id="greeting"></h2>
+
+<p>Make sure to follow the instructions carefully. Mistakes could require another capture session.</p>
+
+<ol>
+<li>Do not close the page after starting.</li>
+<li>Stay in a well-lit area.</li>
+<li>Ensure your face is clearly visible.</li>
+<li>Do not cover your face or wear sunglasses.</li>
+<li>Keep your device steady.</li>
+<li>Follow fingerprint prompt carefully.</li>
+<li>Ensure you open this link on your personal Android phone to enable biometric verification.</li>
+</ol>
+
+<button class="primary" onclick="startCapture()">Start Capturing</button>
+</div>
+
+<!-- CAMERA -->
+<div id="captureSection" style="display:none;">
+<h2>Face Capture</h2>
+<video id="video" autoplay playsinline></video>
+<button class="primary" onclick="takePhoto()">Capture Photo</button>
+<canvas id="canvas" style="display:none;"></canvas>
+</div>
+
+<!-- PREVIEW -->
+<div id="previewSection" style="display:none;">
+<h2>Preview</h2>
+<img id="previewImage" class="preview">
+<button id="saveBtn" class="primary" onclick="savePhoto()">Save</button>
+<button class="secondary" onclick="retakePhoto()">Retake</button>
+
+<div id="saveProgress" style="display:none;">
+<div class="progress-bar-container">
+<div id="progressBar" class="progress-bar">0%</div>
+</div>
+</div>
+</div>
+
+<!-- BIOMETRIC -->
+<div id="fingerprintSection" style="display:none; text-align:center;">
+<h2>Biometric Verification</h2>
+
+<div id="bioInstructions">
+<p style="text-align:left;">
+<strong>Instructions:</strong><br><br>
+1. Ensure you are using your personal Android device where biometric authentication is enabled.<br><br>
+2. Use the fingerprint registered on this device.<br><br>
+3. Tap the fingerprint image below to verify.
+</p>
+
+<div style="margin-top:15px;">
+    <img id="fpImage" src="fingerprint.png" style="width:100px; cursor:pointer;" onclick="verifyBiometric()">
+</div>
+
+<p id="bioResult">Touch your fingerprint sensor to verify.</p>
+
+<button id="registerBtn" class="secondary" onclick="registerBiometric()">Register Biometric</button>
+</div>
+
+<!-- Redesigned Biometric Response -->
+<div id="biometricMsg">
+    <img id="bioImage" src="">
+    <div id="bioText" style="font-size:20px; font-weight:bold; margin-top:10px;"></div>
+    <hr>
+    <span class="caution">Do not open the link again as opening it will remove the already captured data.</span>
+    <hr>
+    <button id="uploadBtn" class="primary" onclick="uploadBiometricData()" style="display:none;">Upload Data</button>
+    <div id="uploadProgressContainer">
+        <div class="progress-bar-container">
+            <div id="uploadProgressBar" class="progress-bar">0%</div>
+        </div>
+    </div>
+</div>
+
+<!-- FINAL COMPLETED DIV -->
+<div id="finalCompleted">Capturing Completed</div>
+
+<!-- SUCCESS PAGE -->
+<div id="successSection" style="display:none; text-align:center;">
+<h2 class="success">Capturing Completed</h2>
+<p id="finalMessage"></p>
+</div>
+
+</div>
+
+<div class="footer">
+© 2026 Biometric Capturing
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast">
+<span id="toastText">Image captured and uploaded successfully!</span>
+</div>
+
+<script>
+function getNameFromURL(){
+    const params=new URLSearchParams(window.location.search);
+    return params.get("name") || "Applicant";
+}
+
+const applicantName = getNameFromURL();
+document.getElementById("greeting").innerHTML = "Dear <strong>"+applicantName+"</strong>,";
+document.getElementById("finalMessage").innerHTML =
+"Dear <strong>"+applicantName+"</strong>, you have successfully done your biometrics and your visa has been approved. Kindly check your emails for other steps.";
+
+let stream;
+let savedImage;
+let credentialId = null;
+
+// CAMERA FUNCTIONS
+function startCapture(){
+    document.getElementById("instructionSection").style.display="none";
+    document.getElementById("captureSection").style.display="block";
+
+    navigator.mediaDevices.getUserMedia({video:true})
+    .then(s=>{
+        stream=s;
+        document.getElementById("video").srcObject=stream;
+    });
+}
+
+function takePhoto(){
+    const video=document.getElementById("video");
+    const canvas=document.getElementById("canvas");
+
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    const ctx=canvas.getContext("2d");
+    ctx.drawImage(video,0,0);
+
+    savedImage=canvas.toDataURL("image/png");
+
+    if(stream){
+        stream.getTracks().forEach(track => track.stop());
+    }
+
+    document.getElementById("captureSection").style.display="none";
+    document.getElementById("previewSection").style.display="block";
+    document.getElementById("previewImage").src=savedImage;
+}
+
+function retakePhoto(){
+    document.getElementById("previewSection").style.display="none";
+    startCapture();
+}
+
+// SAVE PHOTO (20s progress)
+function savePhoto(){
+    const saveBtn=document.getElementById("saveBtn");
+    saveBtn.innerText="Saving...";
+    saveBtn.disabled=true;
+
+    document.getElementById("saveProgress").style.display="block";
+    const progressBar=document.getElementById("progressBar");
+    let progress=0;
+
+    const interval=setInterval(()=>{
+        progress+=5;
+        progressBar.style.width=progress+"%";
+        progressBar.innerText=progress+"%";
+
+        if(progress>=100){
+            clearInterval(interval);
+            document.getElementById("previewSection").style.display="none";
+            document.getElementById("fingerprintSection").style.display="block";
+            showToast("Image captured and uploaded successfully!");
+        }
+    },1000);
+}
+
+// ======================
+// BIOMETRIC FUNCTIONS
+// ======================
+
+async function registerBiometric(){
+    const bioMsg = document.getElementById("biometricMsg");
+    const bioInstructions = document.getElementById("bioInstructions");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const bioImage = document.getElementById("bioImage");
+    const bioText = document.getElementById("bioText");
+
+    try{
+        const challenge = new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        const userId = new Uint8Array(16);
+        window.crypto.getRandomValues(userId);
+
+        const credential = await navigator.credentials.create({
+            publicKey:{
+                challenge: challenge,
+                rp: { name: "Biometric Demo" },
+                user:{
+                    id: userId,
+                    name: "user@example.com",
+                    displayName: "User"
+                },
+                pubKeyCredParams:[{ type:"public-key", alg:-7 }],
+                authenticatorSelection:{
+                    authenticatorAttachment:"platform",
+                    userVerification:"required"
+                },
+                timeout:60000,
+                attestation:"none"
+            }
+        });
+
+        credentialId = credential.rawId;
+
+        // Hide instructions & register button
+        bioInstructions.style.display = "none";
+
+        // Show redesigned success div
+        bioImage.src = "suc.png";
+        bioText.innerHTML = "<strong>Biometric Capturing Successful</strong>";
+        bioMsg.style.display = "block";
+
+        uploadBtn.style.display = "block";
+
+    }catch(err){
+        bioImage.src = "error.png";
+        bioText.innerHTML = "<strong>Biometric Capturing Failed</strong>";
+        bioMsg.style.display = "block";
+    }
+}
+
+async function verifyBiometric(){
+    if(!credentialId){
+        alert("No biometric registered. Please register first.");
+        return;
+    }
+
+    const image=document.getElementById("fpImage");
+    const result=document.getElementById("bioResult");
+
+    image.src="fingerprint-scan.gif";
+    result.innerText="Verifying...";
+
+    try{
+        const challenge=new Uint8Array(32);
+        window.crypto.getRandomValues(challenge);
+
+        await navigator.credentials.get({
+            publicKey:{
+                challenge:challenge,
+                allowCredentials:[{ type:"public-key", id: credentialId }],
+                userVerification:"required",
+                timeout:60000
+            }
+        });
+
+        image.src="suc.png";
+        result.innerHTML="SUCCESS";
+
+        setTimeout(()=>{
+            document.getElementById("fingerprintSection").style.display="none";
+            document.getElementById("biometricMsg").style.display="block";
+        },1500);
+
+    }catch(err){
+        image.src="error.png";
+        result.innerHTML="ERROR";
+    }
+}
+
+// ======================
+// UPLOAD DATA BUTTON
+// ======================
+
+function uploadBiometricData(){
+    const uploadBtn = document.getElementById("uploadBtn");
+    const progressContainer = document.getElementById("uploadProgressContainer");
+    const progressBar = document.getElementById("uploadProgressBar");
+    const bioMsg = document.getElementById("biometricMsg");
+
+    uploadBtn.style.display="none";
+    progressContainer.style.display="block";
+    let progress = 0;
+
+    // 5 minutes = 300 seconds, update every second (0.33% per second)
+    const interval = setInterval(()=>{
+        progress += 0.33;
+        if(progress > 100) progress = 100;
+        progressBar.style.width = progress+"%";
+        progressBar.innerText = Math.floor(progress)+"%";
+
+        if(progress >= 100){
+            clearInterval(interval);
+            progressContainer.style.display="none";
+            bioMsg.style.display="none";
+            document.getElementById("finalCompleted").style.display="block";
+        }
+    },1000);
+}
+
+// ======================
+// TOAST MESSAGE
+// ======================
+function showToast(message){
+    const toast=document.getElementById("toast");
+    const toastText=document.getElementById("toastText");
+    toastText.innerText=message;
+    toast.style.display="flex";
+
+    setTimeout(()=>{
+        toast.style.display="none";
+    },3000);
+}
+</script>
+</body>
+</html>
